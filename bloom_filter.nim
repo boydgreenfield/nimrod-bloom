@@ -23,7 +23,7 @@ type
     error_rate: float
     k_hashes: int
     m_bits: int
-    bit_array: seq[int8]
+    int_array: seq[int]
     n_bits_per_elem: int
 
 proc hash_a(item: string, max_value: int): int =
@@ -45,7 +45,7 @@ proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, forc
   var bits_per_elem: float
   var n_bits_per_elem: int
   var m_bits: int
-  var m_bytes: int
+  var m_ints: int
   if k < 1:
     bits_per_elem = ceil(-1.0 * (ln(error_rate) / (pow(ln(2), 2))))
     k_hashes = round(ln(2) * bits_per_elem)
@@ -57,11 +57,11 @@ proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, forc
     k_hashes = k
 
   m_bits = capacity * n_bits_per_elem
-  m_bytes = m_bits div 8
+  m_ints = m_bits div sizeof(int)
 
   result = TBloomFilter(capacity: capacity, error_rate: error_rate,
                         k_hashes: k_hashes, m_bits: m_bits,
-                        bit_array: newSeq[int8](m_bytes),
+                        int_array: newSeq[int](m_ints),
                         n_bits_per_elem: n_bits_per_elem)
 
 proc `$`*(bf: TBloomFilter): string =
@@ -77,23 +77,23 @@ proc hash(bf: TBloomFilter, item: string): seq[int] =
 
 proc insert*(bf: var TBloomFilter, item: string) =
   var hash_set: seq[int]
-  var byte_address, bit_offset: int
+  var int_address, bit_offset: int
   hash_set = bf.hash(item)
   for h in hash_set:
-    byte_address = h div 8
-    bit_offset = h mod 8
-    bf.bit_array[byte_address] = bf.bit_array[byte_address] or bit_setters[bit_offset]
+    int_address = h div sizeof(int)
+    bit_offset = h mod sizeof(int)
+    bf.int_array[int_address] = bf.int_array[int_address] or (1 shl bit_offset)
 
 proc lookup*(bf: TBloomFilter, item: string): bool =
   var hash_set: seq[int]
-  var byte_address, bit_offset: int
-  var current_byte: int8
+  var int_address, bit_offset: int
+  var current_byte: int
   hash_set = bf.hash(item)
   for h in hash_set:
-    byte_address = h div 8
-    bit_offset = h mod 8
-    current_byte = bf.bit_array[byte_address]
-    if (current_byte) != (current_byte or bit_setters[bit_offset]):
+    int_address = h div sizeof(int)
+    bit_offset = h mod sizeof(int)
+    current_byte = bf.int_array[int_address]
+    if (current_byte) != (current_byte or (1 shl bit_offset)):
       return false
   return true
 
@@ -113,6 +113,7 @@ when isMainModule:
   echo("Inserting element.")
   bf2.insert("testing")
   echo("Test element in BF2?: ", bf2.lookup("testing"))
+  assert(bf2.lookup("testing"))
 
   # Now test for speed with bf
   randomize(2882)  # Seed the RNG

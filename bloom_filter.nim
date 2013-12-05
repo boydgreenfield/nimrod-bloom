@@ -1,7 +1,6 @@
-from math import ceil, E, ln, pow, round
+from math import ceil, E, ln, pow, random, round
 import hashes
 import strutils
-
 
 const
   bit0: int8 = 1'i8
@@ -14,10 +13,8 @@ const
   bit7: int8 = 128'i8
   bit_setters: array[0..7, int8] = [1'i8, 2'i8, 4'i8, 8'i8, 16'i8, 32'i8, 64'i8, 128'i8]
 
-
 type
   EBloomFilter = object of EBase
-
 
 type
   TBloomFilter = object
@@ -28,8 +25,6 @@ type
     bit_array: seq[int8]
     n_bits_per_elem: int
 
-
-
 proc hash_a(item: string, max_value: int): int =
   result = hash(item) mod max_value
 
@@ -39,7 +34,7 @@ proc hash_b(item: string, max_value: int): int =
 proc hash_n(item: string, n: int, max_value: int): int =
   result = abs((hash_a(item, max_value) + n * hash_b(item, max_value))) mod max_value
 
-proc initialize_bloom_filter(capacity: int, error_rate: float, k: int = 0, force_n_bits_per_elem: int = 0): TBloomFilter =
+proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, force_n_bits_per_elem: int = 0): TBloomFilter =
   ## Initializes a Bloom filter, using a specified capacity, error rate, and – optionally -
   ## specific number of k hash functions. If k_hashes is < 1 (default argument is 0), k_hashes will be optimally
   #$ calculated on the fly. Otherwise, k_hashes will be set to the passed integer, which requires that
@@ -68,11 +63,9 @@ proc initialize_bloom_filter(capacity: int, error_rate: float, k: int = 0, force
                         bit_array: newSeq[int8](m_bytes),
                         n_bits_per_elem: n_bits_per_elem)
 
-
-proc `$`(bf: TBloomFilter): string =
+proc `$`*(bf: TBloomFilter): string =
   result = ("Bloom filter with $1 capacity, $2 error rate, $3 hash functions, and requiring $4 bits per stored element." %
            [$bf.capacity, formatFloat(bf.error_rate, format = ffScientific, precision = 2), $bf.k_hashes, $bf.n_bits_per_elem])
-
 
 proc hash(bf: TBloomFilter, item: string): seq[int] =
   var result: seq[int]
@@ -81,8 +74,7 @@ proc hash(bf: TBloomFilter, item: string): seq[int] =
     result[i] = hash_n(item, i, bf.m_bits)
   return result
 
-
-proc insert(bf: var TBloomFilter, item: string) =
+proc insert*(bf: var TBloomFilter, item: string) =
   var hash_set: seq[int]
   var byte_address, bit_offset: int
   hash_set = bf.hash(item)
@@ -94,8 +86,7 @@ proc insert(bf: var TBloomFilter, item: string) =
     #echo("Offset is   ", toBin(bit_setters[bit_offset], 8))
     #echo("Byte now is ", toBin(bf.bit_array[byte_address], 8))
 
-
-proc lookup(bf: TBloomFilter, item: string): bool =
+proc lookup*(bf: TBloomFilter, item: string): bool =
   var hash_set: seq[int]
   var byte_address, bit_offset: int
   var current_byte: int8
@@ -109,10 +100,9 @@ proc lookup(bf: TBloomFilter, item: string): bool =
   return true
 
 
-
 when isMainModule:
   ## Tests
-  var bf = initialize_bloom_filter(100000, 0.001)
+  var bf = initialize_bloom_filter(10000, 0.001)
   assert(bf of TBloomFilter)
   echo(bf)
 
@@ -125,3 +115,37 @@ when isMainModule:
   echo("Inserting element.")
   bf2.insert("testing")
   echo("Test element in BF2?: ", bf2.lookup("testing"))
+
+  # Now test for speed with bf
+  #randomize(2882)  # Seed the RNG
+  var sample_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+  var ten_k_elements, sample_letters: seq[string]
+  ten_k_elements = newSeq[string](10000)
+  sample_letters = newSeq[string](62)
+
+  for i in 0..9999:
+    var new_string = ""
+    for j in 0..7:
+      new_string.add(sample_chars[random(51)])
+    ten_k_elements[i] = new_string
+
+  for i in 0..9999:
+    bf.insert(ten_k_elements[i])
+
+  var false_positives = 0
+  for i in 0..9999:
+    var false_positive_string = ""
+    for j in 0..8:  # By definition not in bf as 9 chars not 8
+      false_positive_string.add(sample_chars[random(51)])
+    if bf.lookup(false_positive_string):
+      false_positives += 1
+
+  echo("N false positives (of 10k): ", false_positives)
+  echo("False positive rate ", formatFloat(false_positives / 10000, format = ffDecimal, precision = 4))
+
+  var lookup_errors = 0
+  for i in 0..9999:
+    if not bf.lookup(ten_k_elements[i]):
+      lookup_errors += 1
+
+  echo("N lookup errors (should be 0): ", lookup_errors)

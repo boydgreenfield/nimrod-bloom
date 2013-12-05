@@ -44,8 +44,6 @@ proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, forc
   var k_hashes: int
   var bits_per_elem: float
   var n_bits_per_elem: int
-  var m_bits: int
-  var m_ints: int
   if k < 1:
     bits_per_elem = ceil(-1.0 * (ln(error_rate) / (pow(ln(2), 2))))
     k_hashes = round(ln(2) * bits_per_elem)
@@ -56,8 +54,8 @@ proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, forc
     n_bits_per_elem = force_n_bits_per_elem
     k_hashes = k
 
-  m_bits = capacity * n_bits_per_elem
-  m_ints = 1 + m_bits div (sizeof(int) * 8)
+  let m_bits = capacity * n_bits_per_elem
+  let m_ints = 1 + m_bits div (sizeof(int) * 8)
 
   result = TBloomFilter(capacity: capacity, error_rate: error_rate,
                         k_hashes: k_hashes, m_bits: m_bits,
@@ -76,21 +74,18 @@ proc hash(bf: TBloomFilter, item: string): seq[int] =
   return result
 
 proc insert*(bf: var TBloomFilter, item: string) =
-  var int_address, bit_offset: int
   var hash_set = bf.hash(item)
   for h in hash_set:
-    int_address = h div (sizeof(int) * 8)
-    bit_offset = h mod (sizeof(int) * 8)
+    let int_address = h div (sizeof(int) * 8)
+    let bit_offset = h mod (sizeof(int) * 8)
     bf.int_array[int_address] = bf.int_array[int_address] or (1 shl bit_offset)
 
 proc lookup*(bf: TBloomFilter, item: string): bool =
-  var int_address, bit_offset: int
-  var current_int: int
   var hash_set = bf.hash(item)
   for h in hash_set:
-    int_address = h div (sizeof(int) * 8)
-    bit_offset = h mod (sizeof(int) * 8)
-    current_int = bf.int_array[int_address]
+    let int_address = h div (sizeof(int) * 8)
+    let bit_offset = h mod (sizeof(int) * 8)
+    let current_int = bf.int_array[int_address]
     if (current_int) != (current_int or (1 shl bit_offset)):
       return false
   return true

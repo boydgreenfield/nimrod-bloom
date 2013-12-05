@@ -1,6 +1,7 @@
 from math import ceil, E, ln, pow, random, randomize, round
 import hashes
 import strutils
+import times
 
 # TODOS:
 # 1) Add table for selecting m over n if the error rate and k are provided
@@ -101,7 +102,7 @@ when isMainModule:
   assert(bf of TBloomFilter)
   echo(bf)
 
-  var bf2 = initialize_bloom_filter(100000, 0.001, k = 5, force_n_bits_per_elem = 10)
+  var bf2 = initialize_bloom_filter(10000, 0.001, k = 5, force_n_bits_per_elem = 10)
   assert(bf2 of TBloomFilter)
   echo(bf2)
 
@@ -124,8 +125,12 @@ when isMainModule:
       new_string.add(sample_chars[random(51)])
     ten_k_elements[i] = new_string
 
+  var start_time, end_time: float
+  start_time = cpuTime()
   for i in 0..9999:
     bf.insert(ten_k_elements[i])
+  end_time = cpuTime()
+  echo("Took ", formatFloat(end_time - start_time, format = ffDecimal, precision = 4), " seconds to insert 10k items.")
 
   var false_positives = 0
   for i in 0..9999:
@@ -139,8 +144,12 @@ when isMainModule:
   echo("False positive rate ", formatFloat(false_positives / 10000, format = ffDecimal, precision = 4))
 
   var lookup_errors = 0
+  start_time = cpuTime()
+  var t0 = cpuTime()
   for i in 0..9999:
     if not bf.lookup(ten_k_elements[i]):
       lookup_errors += 1
+  end_time = cpuTime()
+  echo("Took ", formatFloat(end_time - start_time, format = ffDecimal, precision = 4), " seconds to lookup 10k items.")
 
   echo("N lookup errors (should be 0): ", lookup_errors)

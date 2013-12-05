@@ -79,19 +79,17 @@ proc hash(bf: TBloomFilter, item: string): seq[int] =
   return result
 
 proc insert*(bf: var TBloomFilter, item: string) =
-  var hash_set: seq[int]
   var int_address, bit_offset: int
-  hash_set = bf.hash(item)
+  var hash_set = bf.hash(item)
   for h in hash_set:
     int_address = h div (sizeof(int) * 8)
     bit_offset = h mod (sizeof(int) * 8)
     bf.int_array[int_address] = bf.int_array[int_address] or (1 shl bit_offset)
 
 proc lookup*(bf: TBloomFilter, item: string): bool =
-  var hash_set: seq[int]
   var int_address, bit_offset: int
   var current_int: int
-  hash_set = bf.hash(item)
+  var hash_set = bf.hash(item)
   for h in hash_set:
     int_address = h div (sizeof(int) * 8)
     bit_offset = h mod (sizeof(int) * 8)
@@ -151,7 +149,6 @@ when isMainModule:
 
   var lookup_errors = 0
   start_time = cpuTime()
-  var t0 = cpuTime()
   for i in 0..9999:
     if not bf.lookup(ten_k_elements[i]):
       lookup_errors += 1

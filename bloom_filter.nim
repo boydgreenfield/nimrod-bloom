@@ -33,12 +33,15 @@ proc hash_b(item: string, max_value: int): int =
   result = hash(item & " b") mod max_value
 
 proc hash_n(item: string, n: int, max_value: int): int =
+  ## Get the nth hash of a string using the formula hash_a + n * hash_b
+  ## which uses 2 hash functions vs. k and has comparable properties
+  ## See Kirsch and Mitzenmacher, 2008: http://www.eecs.harvard.edu/~kirsch/pubs/bbbf/rsa.pdf
   result = abs((hash_a(item, max_value) + n * hash_b(item, max_value))) mod max_value
 
 proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, force_n_bits_per_elem: int = 0): TBloomFilter =
   ## Initializes a Bloom filter, using a specified capacity, error rate, and – optionally -
   ## specific number of k hash functions. If k_hashes is < 1 (default argument is 0), k_hashes will be optimally
-  #$ calculated on the fly. Otherwise, k_hashes will be set to the passed integer, which requires that
+  ## calculated on the fly. Otherwise, k_hashes will be set to the passed integer, which requires that
   ## force_n_bits_per_elem is also set to be greater than 0.
   ## See http://pages.cs.wisc.edu/~cao/papers/summary-cache/node8.html for useful tables on k and m/n (n bits per element) combinations.
   var k_hashes: int

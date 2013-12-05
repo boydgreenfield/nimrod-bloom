@@ -57,7 +57,7 @@ proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, forc
 
 proc `$`*(bf: TBloomFilter): string =
   result = ("Bloom filter with $1 capacity, $2 error rate, $3 hash functions, and requiring $4 bits per stored element." %
-           [$bf.capacity, formatFloat(bf.error_rate, format = ffScientific, precision = 2), $bf.k_hashes, $bf.n_bits_per_elem])
+           [$bf.capacity, formatFloat(bf.error_rate, format = ffScientific, precision = 1), $bf.k_hashes, $bf.n_bits_per_elem])
 
 proc hash(bf: TBloomFilter, item: string): seq[int] =
   var result: seq[int]

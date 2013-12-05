@@ -1,4 +1,4 @@
-from math import ceil, E, ln, pow, random, round
+from math import ceil, E, ln, pow, random, randomize, round
 import hashes
 import strutils
 
@@ -106,7 +106,7 @@ when isMainModule:
   echo("Test element in BF2?: ", bf2.lookup("testing"))
 
   # Now test for speed with bf
-  #randomize(2882)  # Seed the RNG
+  randomize(2882)  # Seed the RNG
   var sample_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
   var ten_k_elements, sample_letters: seq[string]
   ten_k_elements = newSeq[string](10000)

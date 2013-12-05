@@ -3,14 +3,6 @@ import hashes
 import strutils
 
 const
-  bit0: int8 = 1'i8
-  bit1: int8 = 2'i8
-  bit2: int8 = 4'i8
-  bit3: int8 = 8'i8
-  bit4: int8 = 16'i8
-  bit5: int8 = 32'i8
-  bit6: int8 = 64'i8
-  bit7: int8 = 128'i8
   bit_setters: array[0..7, int8] = [1'i8, 2'i8, 4'i8, 8'i8, 16'i8, 32'i8, 64'i8, 128'i8]
 
 type
@@ -81,10 +73,7 @@ proc insert*(bf: var TBloomFilter, item: string) =
   for h in hash_set:
     byte_address = h div 8
     bit_offset = h mod 8
-    #echo("Byte is     ", toBin(bf.bit_array[byte_address], 8))
     bf.bit_array[byte_address] = bf.bit_array[byte_address] or bit_setters[bit_offset]
-    #echo("Offset is   ", toBin(bit_setters[bit_offset], 8))
-    #echo("Byte now is ", toBin(bf.bit_array[byte_address], 8))
 
 proc lookup*(bf: TBloomFilter, item: string): bool =
   var hash_set: seq[int]

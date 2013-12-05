@@ -8,6 +8,8 @@ import times
 # 2) More testing
 # 3) Make code more idiomatic?
 # 4) Add more documentation
+# 5) Swap built-in hash for MurmurHash3 or similar (and fix hackish string concatenation in hash_b())
+# 6) Add hashing for other types besides strings?
 
 const
   bit_setters: array[0..7, int8] = [1'i8, 2'i8, 4'i8, 8'i8, 16'i8, 32'i8, 64'i8, 128'i8]

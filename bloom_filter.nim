@@ -2,6 +2,12 @@ from math import ceil, E, ln, pow, random, randomize, round
 import hashes
 import strutils
 
+# TODOS:
+# 1) Add table for selecting m over n if the error rate and k are provided
+# 2) More testing
+# 3) Make code more idiomatic?
+# 4) Add more documentation
+
 const
   bit_setters: array[0..7, int8] = [1'i8, 2'i8, 4'i8, 8'i8, 16'i8, 32'i8, 64'i8, 128'i8]
 
@@ -90,7 +96,7 @@ proc lookup*(bf: TBloomFilter, item: string): bool =
 
 
 when isMainModule:
-  ## Tests
+  ## Some quick and dirty tests (not complete)
   var bf = initialize_bloom_filter(10000, 0.001)
   assert(bf of TBloomFilter)
   echo(bf)

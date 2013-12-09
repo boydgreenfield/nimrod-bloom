@@ -12,8 +12,12 @@ Currently supports inserting and looking up string elements. Forthcoming feature
 * Support for other types beyond strings
 * Support for iterables in the insert method
 
+
+demo
+====
 Quick functionality demo:
 ```
+import bloom
 var bf = initialize_bloom_filter(capacity = 10000, error_rate = 0.001)
 echo(bf.lookup("An element not in the Bloom filter"))  # Prints 'false'
 bf.insert("Here we go...")

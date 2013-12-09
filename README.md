@@ -11,6 +11,7 @@ Currently supports inserting and looking up string elements. Forthcoming feature
 * Additional documentation and testing
 * Support for other types beyond strings
 * Support for iterables in the insert method
+* Persistence
 
 
 demo

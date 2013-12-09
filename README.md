@@ -7,8 +7,6 @@ On a newer Macbook Pro Retina the test case for 1M insertions executes in ~1.3 s
 
 
 Currently supports inserting and looking up string elements. Forthcoming features include:
-* Ability to better specify the number of k hash functions desired
-* Additional documentation and testing
 * Support for other types beyond strings
 * Support for iterables in the insert method
 * Persistence

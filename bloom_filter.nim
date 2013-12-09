@@ -6,10 +6,7 @@ import times
 # TODOS:
 # 1) Add table for selecting m over n if the error rate and k are provided
 # 2) More testing
-# 3) Make code more idiomatic?
-# 4) Add more documentation
-# 5) Swap built-in hash for MurmurHash3 or similar (and fix hackish string concatenation in hash_b()) (DONE)
-# 6) Add hashing for other types besides strings?
+# 3) Add hashing for other types besides strings?
 
 {.compile: "murmur3.c".}
 
@@ -50,11 +47,14 @@ proc hash_n(item: string, n: int, max_value: int): int =
   result = abs((hash_a(item, max_value) + n * hash_b(item, max_value))) mod max_value
 
 proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, force_n_bits_per_elem: int = 0, use_murmur_hash: bool = true): TBloomFilter =
-  ## Initializes a Bloom filter, using a specified capacity, error rate, and – optionally -
-  ## specific number of k hash functions. If k_hashes is < 1 (default argument is 0), k_hashes will be optimally
-  ## calculated on the fly. Otherwise, k_hashes will be set to the passed integer, which requires that
-  ## force_n_bits_per_elem is also set to be greater than 0.
+  ## Initializes a Bloom filter, using a specified ``capacity``, ``error_rate``, and – optionally –
+  ## specific number of k hash functions. If ``k_hashes`` is < 1 (default argument is 0), ``k_hashes`` will be optimally
+  ## calculated on the fly. Otherwise, ``k_hashes`` will be set to the passed integer, which requires that
+  ## ``force_n_bits_per_elem`` is also set to be greater than 0. Otherwise a ``EBloomFilter`` exception is raised.
   ## See http://pages.cs.wisc.edu/~cao/papers/summary-cache/node8.html for useful tables on k and m/n (n bits per element) combinations.
+  ##
+  ## The Bloom filter uses the MurmurHash3 implementation by default, though it can fall back to using the built-in nimrod ``hash`` function
+  ## if ``use_murmur_hash = false``. This is compiled alongside the Nimrod code using the ``{.compile.}`` pragma.
   var k_hashes: int
   var bits_per_elem: float
   var n_bits_per_elem: int
@@ -78,6 +78,7 @@ proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, forc
                         use_murmur_hash: use_murmur_hash)
 
 proc `$`*(bf: TBloomFilter): string =
+  ##  Prints the capacity, set error rate, number of k hash functions, and total bits of memory allocated by the Bloom filter.
   result = ("Bloom filter with $1 capacity, $2 error rate, $3 hash functions, and requiring $4 bits per stored element." %
            [$bf.capacity, formatFloat(bf.error_rate, format = ffScientific, precision = 1), $bf.k_hashes, $bf.n_bits_per_elem])
 
@@ -107,6 +108,7 @@ proc hash(bf: TBloomFilter, item: string): seq[int] =
   return result
 
 proc insert*(bf: var TBloomFilter, item: string) =
+  ## Insert an item (string) into the Bloom filter. Can be called with method style syntax like ``bf.insert("test item")``.
   var hash_set = bf.hash(item)
   for h in hash_set:
     let int_address = h div (sizeof(int) * 8)
@@ -114,6 +116,9 @@ proc insert*(bf: var TBloomFilter, item: string) =
     bf.int_array[int_address] = bf.int_array[int_address] or (1 shl bit_offset)
 
 proc lookup*(bf: TBloomFilter, item: string): bool =
+  ## Lookup an item (string) into the Bloom filter. Can be called with method style syntax like ``bf.lookup("test item")``.
+  ## If the item is present, ``lookup`` is guaranteed to return ``true``. If the item is not present, ``lookup`` will return ``false``
+  ## with a probability 1 - ``bf.error_rate``.
   var hash_set = bf.hash(item)
   for h in hash_set:
     let int_address = h div (sizeof(int) * 8)
@@ -130,7 +135,7 @@ when isMainModule:
   var hash_outputs: TMurmurHashes
   hash_outputs = [0, 0]
   raw_murmur_hash("hello", 5, 0, hash_outputs)
-  assert int(hash_outputs[0]) == -3758069500696749310  # Correct murmur outputs
+  assert int(hash_outputs[0]) == -3758069500696749310  # Correct murmur outputs (cast to int64)
   assert int(hash_outputs[1]) == 6565844092913065241
 
   let hash_outputs2 = murmur_hash("hello", 0)

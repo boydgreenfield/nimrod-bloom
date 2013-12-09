@@ -11,6 +11,8 @@ import times
 # 5) Swap built-in hash for MurmurHash3 or similar (and fix hackish string concatenation in hash_b())
 # 6) Add hashing for other types besides strings?
 
+{.compile: "murmur3.c".}
+
 type
   EBloomFilter = object of EBase
 
@@ -22,6 +24,19 @@ type
     m_bits: int
     int_array: seq[int]
     n_bits_per_elem: int
+
+type
+  TMurmurHashes = array[0..1, int]
+
+proc raw_murmur_hash(key: cstring, len: int, seed: uint32, out_hashes: var TMurmurHashes): void {.
+  importc: "MurmurHash3_x64_128".}
+
+proc murmur_hash(key: string, seed: uint32 = 0'u32): TMurmurHashes =
+  var result: TMurmurHashes = [0, 0]
+  raw_murmur_hash(key = key, len = key.len, seed = seed, out_hashes = result)
+  #result[0] = abs(result[0])
+  #result[1] = abs(result[1])
+  return result
 
 proc hash_a(item: string, max_value: int): int =
   result = hash(item) mod max_value
@@ -66,6 +81,17 @@ proc `$`*(bf: TBloomFilter): string =
   result = ("Bloom filter with $1 capacity, $2 error rate, $3 hash functions, and requiring $4 bits per stored element." %
            [$bf.capacity, formatFloat(bf.error_rate, format = ffScientific, precision = 1), $bf.k_hashes, $bf.n_bits_per_elem])
 
+{.push overflowChecks: off.}
+
+proc hash_murmur(bf: TBloomFilter, item: string): seq[int] =
+  result = newSeq[int](bf.k_hashes)
+  let murmur_hashes = murmur_hash(key = item, seed = 0'u32)
+  for i in 0..(bf.k_hashes - 1):
+    result[i] = abs(murmur_hashes[0] + i * murmur_hashes[1]) mod bf.m_bits
+  return result
+
+{.pop.}
+
 proc hash(bf: TBloomFilter, item: string): seq[int] =
   var result: seq[int]
   newSeq(result, bf.k_hashes)
@@ -92,12 +118,28 @@ proc lookup*(bf: TBloomFilter, item: string): bool =
 
 
 when isMainModule:
-  ## Some quick and dirty tests (not complete)
+  # Test murmurhash 3
+  echo("Testing MurmurHash3 code...")
+  var hash_outputs: TMurmurHashes
+  hash_outputs = [0, 0]
+  raw_murmur_hash("hello", 5, 0, hash_outputs)
+  assert int(hash_outputs[0]) == -3758069500696749310  # Correct murmur outputs
+  assert int(hash_outputs[1]) == 6565844092913065241
+
+  let hash_outputs2 = murmur_hash("hello", 0)
+  assert hash_outputs2[0] == hash_outputs[0]
+  assert hash_outputs2[1] == hash_outputs[1]
+  let hash_outputs3 = murmur_hash("hello", 10)
+  assert hash_outputs3[0] != hash_outputs[0]
+  assert hash_outputs3[1] != hash_outputs[1]
+
+  # Some quick and dirty tests (not complete)
   var bf = initialize_bloom_filter(10000, 0.001)
   assert(bf of TBloomFilter)
+  echo(bf.hash_murmur("Hello")[0])
   echo(bf)
 
-  var bf2 = initialize_bloom_filter(10000, 0.001, k = 5, force_n_bits_per_elem = 10)
+  var bf2 = initialize_bloom_filter(10000, 0.001, k = 4, force_n_bits_per_elem = 20)
   assert(bf2 of TBloomFilter)
   echo(bf2)
 

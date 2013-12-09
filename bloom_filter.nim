@@ -141,7 +141,8 @@ when isMainModule:
   assert hash_outputs3[1] != hash_outputs[1]
 
   # Some quick and dirty tests (not complete)
-  var bf = initialize_bloom_filter(10000, 0.001)
+  var n_elements_to_test = 1000000
+  var bf = initialize_bloom_filter(n_elements_to_test, 0.001)
   assert(bf of TBloomFilter)
 
   var bf2 = initialize_bloom_filter(10000, 0.001, k = 4, force_n_bits_per_elem = 20)
@@ -158,40 +159,40 @@ when isMainModule:
   # Now test for speed with bf
   randomize(2882)  # Seed the RNG
   var sample_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-  var ten_k_elements, sample_letters: seq[string]
-  ten_k_elements = newSeq[string](10000)
+  var k_test_elements, sample_letters: seq[string]
+  k_test_elements = newSeq[string](n_elements_to_test)
   sample_letters = newSeq[string](62)
 
-  for i in 0..9999:
+  for i in 0..(n_elements_to_test - 1):
     var new_string = ""
     for j in 0..7:
       new_string.add(sample_chars[random(51)])
-    ten_k_elements[i] = new_string
+    k_test_elements[i] = new_string
 
   var start_time, end_time: float
   start_time = cpuTime()
-  for i in 0..9999:
-    bf.insert(ten_k_elements[i])
+  for i in 0..(n_elements_to_test - 1):
+    bf.insert(k_test_elements[i])
   end_time = cpuTime()
-  echo("Took ", formatFloat(end_time - start_time, format = ffDecimal, precision = 4), " seconds to insert 10k items.")
+  echo("Took ", formatFloat(end_time - start_time, format = ffDecimal, precision = 4), " seconds to insert ", n_elements_to_test, " items.")
 
   var false_positives = 0
-  for i in 0..9999:
+  for i in 0..(n_elements_to_test - 1):
     var false_positive_string = ""
     for j in 0..8:  # By definition not in bf as 9 chars not 8
       false_positive_string.add(sample_chars[random(51)])
     if bf.lookup(false_positive_string):
       false_positives += 1
 
-  echo("N false positives (of 10k): ", false_positives)
-  echo("False positive rate ", formatFloat(false_positives / 10000, format = ffDecimal, precision = 4))
+  echo("N false positives (of ", n_elements_to_test, " lookups): ", false_positives)
+  echo("False positive rate ", formatFloat(false_positives / n_elements_to_test, format = ffDecimal, precision = 4))
 
   var lookup_errors = 0
   start_time = cpuTime()
-  for i in 0..9999:
-    if not bf.lookup(ten_k_elements[i]):
+  for i in 0..(n_elements_to_test - 1):
+    if not bf.lookup(k_test_elements[i]):
       lookup_errors += 1
   end_time = cpuTime()
-  echo("Took ", formatFloat(end_time - start_time, format = ffDecimal, precision = 4), " seconds to lookup 10k items.")
+  echo("Took ", formatFloat(end_time - start_time, format = ffDecimal, precision = 4), " seconds to lookup ", n_elements_to_test, " items.")
 
   echo("N lookup errors (should be 0): ", lookup_errors)

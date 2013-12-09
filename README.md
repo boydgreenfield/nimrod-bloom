@@ -14,7 +14,7 @@ Currently supports inserting and looking up string elements. Forthcoming feature
 * Persistence
 
 
-demo
+quickstart
 ====
 Quick functionality demo:
 ```

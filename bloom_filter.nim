@@ -8,7 +8,7 @@ import times
 # 2) More testing
 # 3) Make code more idiomatic?
 # 4) Add more documentation
-# 5) Swap built-in hash for MurmurHash3 or similar (and fix hackish string concatenation in hash_b())
+# 5) Swap built-in hash for MurmurHash3 or similar (and fix hackish string concatenation in hash_b()) (DONE)
 # 6) Add hashing for other types besides strings?
 
 {.compile: "murmur3.c".}
@@ -24,6 +24,7 @@ type
     m_bits: int
     int_array: seq[int]
     n_bits_per_elem: int
+    use_murmur_hash: bool
 
 type
   TMurmurHashes = array[0..1, int]
@@ -34,8 +35,6 @@ proc raw_murmur_hash(key: cstring, len: int, seed: uint32, out_hashes: var TMurm
 proc murmur_hash(key: string, seed: uint32 = 0'u32): TMurmurHashes =
   var result: TMurmurHashes = [0, 0]
   raw_murmur_hash(key = key, len = key.len, seed = seed, out_hashes = result)
-  #result[0] = abs(result[0])
-  #result[1] = abs(result[1])
   return result
 
 proc hash_a(item: string, max_value: int): int =
@@ -50,7 +49,7 @@ proc hash_n(item: string, n: int, max_value: int): int =
   ## See Kirsch and Mitzenmacher, 2008: http://www.eecs.harvard.edu/~kirsch/pubs/bbbf/rsa.pdf
   result = abs((hash_a(item, max_value) + n * hash_b(item, max_value))) mod max_value
 
-proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, force_n_bits_per_elem: int = 0): TBloomFilter =
+proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, force_n_bits_per_elem: int = 0, use_murmur_hash: bool = true): TBloomFilter =
   ## Initializes a Bloom filter, using a specified capacity, error rate, and – optionally -
   ## specific number of k hash functions. If k_hashes is < 1 (default argument is 0), k_hashes will be optimally
   ## calculated on the fly. Otherwise, k_hashes will be set to the passed integer, which requires that
@@ -75,7 +74,8 @@ proc initialize_bloom_filter*(capacity: int, error_rate: float, k: int = 0, forc
   result = TBloomFilter(capacity: capacity, error_rate: error_rate,
                         k_hashes: k_hashes, m_bits: m_bits,
                         int_array: newSeq[int](m_ints),
-                        n_bits_per_elem: n_bits_per_elem)
+                        n_bits_per_elem: n_bits_per_elem,
+                        use_murmur_hash: use_murmur_hash)
 
 proc `$`*(bf: TBloomFilter): string =
   result = ("Bloom filter with $1 capacity, $2 error rate, $3 hash functions, and requiring $4 bits per stored element." %
@@ -83,7 +83,7 @@ proc `$`*(bf: TBloomFilter): string =
 
 {.push overflowChecks: off.}
 
-proc hash(bf: TBloomFilter, item: string): seq[int] =
+proc hash_murmur(bf: TBloomFilter, item: string): seq[int] =
   result = newSeq[int](bf.k_hashes)
   let murmur_hashes = murmur_hash(key = item, seed = 0'u32)
   for i in 0..(bf.k_hashes - 1):
@@ -97,6 +97,13 @@ proc hash_nimrod(bf: TBloomFilter, item: string): seq[int] =
   newSeq(result, bf.k_hashes)
   for i in 0..(bf.k_hashes - 1):
     result[i] = hash_n(item, i, bf.m_bits)
+  return result
+
+proc hash(bf: TBloomFilter, item: string): seq[int] =
+  if bf.use_murmur_hash:
+    result = bf.hash_murmur(item = item)
+  else:
+    result = bf.hash_nimrod(item = item)
   return result
 
 proc insert*(bf: var TBloomFilter, item: string) =

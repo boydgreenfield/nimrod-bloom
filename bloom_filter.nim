@@ -83,7 +83,7 @@ proc `$`*(bf: TBloomFilter): string =
 
 {.push overflowChecks: off.}
 
-proc hash_murmur(bf: TBloomFilter, item: string): seq[int] =
+proc hash(bf: TBloomFilter, item: string): seq[int] =
   result = newSeq[int](bf.k_hashes)
   let murmur_hashes = murmur_hash(key = item, seed = 0'u32)
   for i in 0..(bf.k_hashes - 1):
@@ -92,7 +92,7 @@ proc hash_murmur(bf: TBloomFilter, item: string): seq[int] =
 
 {.pop.}
 
-proc hash(bf: TBloomFilter, item: string): seq[int] =
+proc hash_nimrod(bf: TBloomFilter, item: string): seq[int] =
   var result: seq[int]
   newSeq(result, bf.k_hashes)
   for i in 0..(bf.k_hashes - 1):
@@ -136,7 +136,7 @@ when isMainModule:
   # Some quick and dirty tests (not complete)
   var bf = initialize_bloom_filter(10000, 0.001)
   assert(bf of TBloomFilter)
-  echo(bf.hash_murmur("Hello")[0])
+  echo(bf.hash("Hello")[0])
   echo(bf)
 
   var bf2 = initialize_bloom_filter(10000, 0.001, k = 4, force_n_bits_per_elem = 20)

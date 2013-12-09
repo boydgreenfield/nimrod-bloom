@@ -38,5 +38,5 @@ assert bf2.n_bits_per_element == 18
 
 var bf3 = initialize_bloom_filter(capacity = 10000, error_rate = 0.001, k = 5, force_n_bits_per_element = 12)
 assert bf3.k == 5
-assert bf3.n_bits_per_element == 12   # But note, however, that bf.error rate will *not* be correct
+assert bf3.n_bits_per_element == 12   # But note, however, that bf.error_rate will *not* be correct
 ```

@@ -143,8 +143,6 @@ when isMainModule:
   # Some quick and dirty tests (not complete)
   var bf = initialize_bloom_filter(10000, 0.001)
   assert(bf of TBloomFilter)
-  echo(bf.hash("Hello")[0])
-  echo(bf)
 
   var bf2 = initialize_bloom_filter(10000, 0.001, k = 4, force_n_bits_per_elem = 20)
   assert(bf2 of TBloomFilter)

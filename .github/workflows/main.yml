@@ -1,0 +1,58 @@
+name: website
+
+on: [push]  # debugging only
+#on:
+#  push:
+#    tags:
+#      - 'v*.*.*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Set output
+        id: vars
+        run: echo ::set-output name=tag::${GITHUB_REF:10}
+      - name: Cache choosenim
+        id: cache-choosenim
+        uses: actions/cache@v1
+        with:
+          path: ~/.choosenim
+          key: ${{ runner.os }}-choosenim-stable
+      - name: Cache nimble
+        id: cache-nimble
+        uses: actions/cache@v1
+        with:
+          path: ~/.nimble
+          key: ${{ runner.os }}-nimble-stable
+      - uses: jiro4989/setup-nim-action@v1.0.2
+        with:
+          nim-version: 'stable'
+      - name: Build and test
+        env:
+          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+        run: |
+          nimble test -Y
+      - name: Build doc
+        env:
+          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+        run: |
+          # Due to bug https://github.com/nim-lang/Nim/issues/14281, compile the documentation separately.
+          nimble doc --git.url:https://github.com/$GITHUB_REPOSITORY --git.commit:$RELEASE_VERSION bloom.nim
+          nimble doc --git.url:https://github.com/$GITHUB_REPOSITORY --git.commit:$RELEASE_VERSION private/probabilities.nim
+          find .
+          mkdir -p ./public
+          mv bloom.html probabilities.html nimdoc.out.css ./public/
+          cd ./public/
+          ln -s ./bloom.html index.html
+          cd ../
+      - name: Deploy
+        if: success()
+        uses: crazy-max/ghaction-github-pages@v1.3.0
+        with:
+          target_branch: gh-pages
+          build_dir: ./public
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

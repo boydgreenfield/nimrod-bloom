@@ -1,2 +1,6 @@
 nimcache
 nimcache/*
+tests/test
+bloom
+*.html
+*.css

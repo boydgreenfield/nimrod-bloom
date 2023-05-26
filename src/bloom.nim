@@ -9,7 +9,7 @@ import private/probabilities
 type
   BloomFilterError = object of CatchableError
   MurmurHashes = array[0..1, int]
-  BloomFilter = object
+  BloomFilter* = object
     capacity*: int
     errorRate*: float
     kHashes*: int
@@ -22,50 +22,39 @@ proc rawMurmurHash(key: cstring, len: int, seed: uint32,
                      outHashes: var MurmurHashes): void {.
   importc: "MurmurHash3_x64_128".}
 
-proc murmurHash(key: string, seed: uint32 = 0'u32): MurmurHashes =
-  result = [0, 0]
-  rawMurmurHash(key = key, len = key.len, seed = seed, outHashes = result)
+proc murmurHash(key: string, seed = 0'u32): MurmurHashes =
+  rawMurmurHash(key, key.len, seed, outHashes = result)
 
 proc hashA(item: string, maxValue: int): int =
-  result = hash(item) mod maxValue
+  hash(item) mod maxValue
 
 proc hashB(item: string, maxValue: int): int =
-  result = hash(item & " b") mod maxValue
+  hash(item & " b") mod maxValue
 
 proc hashN(item: string, n: int, maxValue: int): int =
   ## Get the nth hash of a string using the formula hashA + n * hashB
   ## which uses 2 hash functions vs. k and has comparable properties
   ## See Kirsch and Mitzenmacher, 2008:
   ## http://www.eecs.harvard.edu/~kirsch/pubs/bbbf/rsa.pdf
-  result = abs((hashA(item, maxValue) + n * hashB(item,
-      maxValue))) mod maxValue
+  abs((hashA(item, maxValue) + n * hashB(item, maxValue))) mod maxValue
 
 proc getMOverNBitsForK(k: int, targetError: float,
-    probabilityTable: TAllErrorRates = kErrors): int =
+    probabilityTable = kErrors): int =
   ## Returns the optimal number of m/n bits for a given k.
-  if k > 12:
+  if k notin 0..12:
     raise newException(BloomFilterError,
       "K must be <= 12 if forceNBitsPerElem is not also specified.")
 
-  var
-    searchingForMOverN = true
-    mOverN = 2
+  for mOverN in 2..probabilityTable[k].high:
+    if probabilityTable[k][mOverN] < targetError:
+      return mOverN
 
-  while searchingForMOverN:
-    try:
-      if probabilityTable[k][mOverN] < targetError:
-        searchingForMOverN = false
-        result = mOverN
-        return result
-      else:
-        mOverN += 1
-    except IndexError:
-      raise newException(BloomFilterError,
-        "Specified value of k and error rate for which is not achievable using less than 4 bytes / element.")
+  raise newException(BloomFilterError,
+    "Specified value of k and error rate for which is not achievable using less than 4 bytes / element.")
 
-proc initializeBloomFilter*(capacity: int, errorRate: float, k: int = 0,
-                              forceNBitsPerElem: int = 0,
-                              useMurmurHash: bool = true): BloomFilter =
+proc initializeBloomFilter*(capacity: int, errorRate: float, k = 0,
+                              forceNBitsPerElem = 0,
+                              useMurmurHash = true): BloomFilter =
   ## Initializes a Bloom filter, using a specified ``capacity``,
   ## ``errorRate``, and – optionally – specific number of k hash functions.
   ## If ``kHashes`` is < 1 (default argument is 0), ``kHashes`` will be
@@ -91,76 +80,71 @@ proc initializeBloomFilter*(capacity: int, errorRate: float, k: int = 0,
     nBitsPerElem = round(bitsPerElem).int
   else: # Use specified k if possible
     if forceNBitsPerElem < 1: # Use lookup table
-      nBitsPerElem = getMOverNBitsForK(k = k,
-          targetError = errorRate)
+      nBitsPerElem = getMOverNBitsForK(k = k, targetError = errorRate)
     else:
       nBitsPerElem = forceNBitsPerElem
     kHashes = k
 
-  let mBits = capacity * nBitsPerElem
-  let mInts = 1 + mBits div (sizeof(int) * 8)
+  let
+    mBits = capacity * nBitsPerElem
+    mInts = 1 + mBits div (sizeof(int) * 8)
 
-  result = BloomFilter(capacity: capacity, errorRate: errorRate,
-                       kHashes: kHashes, mBits: mBits,
-                       intArray: newSeq[int](mInts),
-                       nBitsPerElem: nBitsPerElem,
-                       useMurmurHash: useMurmurHash)
+  BloomFilter(capacity: capacity, errorRate: errorRate, kHashes: kHashes,
+    mBits: mBits, intArray: newSeq[int](mInts), nBitsPerElem: nBitsPerElem,
+    useMurmurHash: useMurmurHash)
 
 proc `$`*(bf: BloomFilter): string =
   ## Prints the capacity, set error rate, number of k hash functions,
   ## and total bits of memory allocated by the Bloom filter.
-  result = ("Bloom filter with $1 capacity, $2 error rate, $3 hash functions, and requiring $4 bits per stored element." %
-            [$bf.capacity, formatFloat(bf.errorRate, format = ffScientific,
-                precision = 1), $bf.kHashes, $bf.nBitsPerElem])
+  "Bloom filter with $1 capacity, $2 error rate, $3 hash functions, and requiring $4 bits per stored element." %
+    [$bf.capacity,
+     formatFloat(bf.errorRate, format = ffScientific, precision = 1),
+     $bf.kHashes, $bf.nBitsPerElem]
 
 {.push overflowChecks: off.}
 
-proc hashMurmur(bf: BloomFilter, item: string): seq[int] =
-  result = newSeq[int](bf.kHashes)
-  let murmurHashes = murmurHash(key = item, seed = 0'u32)
-  for i in 0..(bf.kHashes - 1):
+proc hashMurmur(bf: BloomFilter, key: string): seq[int] =
+  result.newSeq(bf.kHashes)
+  let murmurHashes = murmurHash(key, seed = 0'u32)
+  for i in 0..<bf.kHashes:
     result[i] = abs(murmurHashes[0] + i * murmurHashes[1]) mod bf.mBits
-  return result
 
 {.pop.}
 
-proc hashNim(bf: BloomFilter, item: string): seq[int] =
-  newSeq(result, bf.kHashes)
-  for i in 0..(bf.kHashes - 1):
-    result[i] = hashN(item, i, bf.mBits)
-  return result
+proc hashNim(bf: BloomFilter, key: string): seq[int] =
+  result.newSeq(bf.kHashes)
+  for i in 0..<bf.kHashes:
+    result[i] = hashN(key, i, bf.mBits)
 
-proc hash(bf: BloomFilter, item: string): seq[int] =
+proc hash(bf: BloomFilter, key: string): seq[int] =
   if bf.useMurmurHash:
-    result = bf.hashMurmur(item = item)
+    bf.hashMurmur(key)
   else:
-    result = bf.hashNim(item = item)
-  return result
+    bf.hashNim(key)
 
 proc insert*(bf: var BloomFilter, item: string) =
-  ## Insert an item (string) into the Bloom filter. Can be called with
-  ## method style syntax like ``bf.insert("test item")``.
+  ## Insert an item (string) into the Bloom filter.
   var hashSet = bf.hash(item)
   for h in hashSet:
-    let intAddress = h div (sizeof(int) * 8)
-    let bitOffset = h mod (sizeof(int) * 8)
+    let
+      intAddress = h div (sizeof(int) * 8)
+      bitOffset = h mod (sizeof(int) * 8)
     bf.intArray[intAddress] = bf.intArray[intAddress] or (1 shl bitOffset)
 
 proc lookup*(bf: BloomFilter, item: string): bool =
-  ## Lookup an item (string) into the Bloom filter. Can be called with
-  ## method style syntax like ``bf.lookup("test item")``.
+  ## Lookup an item (string) into the Bloom filter.
   ## If the item is present, ``lookup`` is guaranteed to return ``true``.
   ## If the item is not present, ``lookup`` will return ``false``
   ## with a probability 1 - ``bf.errorRate``.
   var hashSet = bf.hash(item)
   for h in hashSet:
-    let intAddress = h div (sizeof(int) * 8)
-    let bitOffset = h mod (sizeof(int) * 8)
-    let currentInt = bf.intArray[intAddress]
-    if (currentInt) != (currentInt or (1 shl bitOffset)):
+    let
+      intAddress = h div (sizeof(int) * 8)
+      bitOffset = h mod (sizeof(int) * 8)
+      currentInt = bf.intArray[intAddress]
+    if currentInt != (currentInt or (1 shl bitOffset)):
       return false
   return true
-
 
 when isMainModule:
   from random import rand, randomize

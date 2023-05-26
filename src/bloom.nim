@@ -20,7 +20,7 @@ type
 
 proc rawMurmurHash(key: cstring, len: int, seed: uint32,
                      outHashes: var MurmurHashes): void {.
-  importc: "MurmurHash3X64_128".}
+  importc: "MurmurHash3_x64_128".}
 
 proc murmurHash(key: string, seed: uint32 = 0'u32): MurmurHashes =
   result = [0, 0]
@@ -124,7 +124,7 @@ proc hashMurmur(bf: BloomFilter, item: string): seq[int] =
 
 {.pop.}
 
-proc hashNimrod(bf: BloomFilter, item: string): seq[int] =
+proc hashNim(bf: BloomFilter, item: string): seq[int] =
   newSeq(result, bf.kHashes)
   for i in 0..(bf.kHashes - 1):
     result[i] = hashN(item, i, bf.mBits)
@@ -134,7 +134,7 @@ proc hash(bf: BloomFilter, item: string): seq[int] =
   if bf.useMurmurHash:
     result = bf.hashMurmur(item = item)
   else:
-    result = bf.hashNimrod(item = item)
+    result = bf.hashNim(item = item)
   return result
 
 proc insert*(bf: var BloomFilter, item: string) =

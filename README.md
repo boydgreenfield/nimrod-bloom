@@ -3,7 +3,7 @@ nim-bloom
 
 Bloom filter implementation in Nim. Uses a C implementation of MurmurHash3 for optimal speed and numeric distribution.
 
-On a 10 year old Macbook Pro Retina the test case for 10M insertions executes in ~4.0 seconds and 10M lookups in ~3.5 seconds for a Bloom filter with a 1 in 1000 error rate (0.001). This is ~2.5M insertions/sec and ~2.9M lookups/sec on a single thread (but passing the `-d:release` flag to the Nimrod compiler and thus activating the C compiler's optimizations). If k is lowered to 5 or 6 vs. a larger "optimal" number, performance further increases to ~4M ops/sec. Note that this test is for a Bloom filter ~20-25MB in size and thus accurately reflects the cost of main memory accesses (vs. a smaller filter that might fit solely in L3 cache, for example, and can achieve several million additional ops/sec).
+On a 10 year old Macbook Pro Retina the test case for 10M insertions executes in ~4.0 seconds and 10M lookups in ~3.5 seconds for a Bloom filter with a 1 in 1000 error rate (0.001). This is ~2.5M insertions/sec and ~2.9M lookups/sec on a single thread (but passing the `-d:release` flag to the Nim compiler and thus activating the C compiler's optimizations). If k is lowered to 5 or 6 vs. a larger "optimal" number, performance further increases to ~4M ops/sec. Note that this test is for a Bloom filter ~20-25MB in size and thus accurately reflects the cost of main memory accesses (vs. a smaller filter that might fit solely in L3 cache, for example, and can achieve several million additional ops/sec).
 
 
 Currently supports inserting and looking up string elements. Forthcoming features include:
